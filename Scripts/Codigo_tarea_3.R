@@ -55,11 +55,11 @@ data("GlobalPatterns")
 gp <- GlobalPatterns
 gp 
 View(sample_data(gp))
-
 View(otu_table(gp))
+View(tax_table(gp))
 
-dim(otu_table(gp))
-otu_table(gp)[1,1]>1
+# Preprocesamiento
+# 1. Filtrar taxa con menos de 5 lecturas en al menos 20% de las muestras
 tax <- c()
 for (i in 1:(dim(otu_table(gp))[1])){
   x <- 0
@@ -75,18 +75,61 @@ for (i in 1:(dim(otu_table(gp))[1])){
 
 gp.taxfilt <- prune_taxa(tax, gp)
 taxa_names(gp.taxfilt)
-# Preprocesamiento
 
-gp.less5 <- prune_taxa(taxa_sums(gp) < 5, gp)
-gp.less5
-gp.filt <- subset_samples(gp, sample_data(gp)$SampleType == "Soil" | sample_data(gp)$SampleType == "Feces" | sample_data(gp)$SampleType == "Skin")
-gp.filt <- transform_sample_counts(gp.filt, function(otu) otu/sum(otu))
+gp.taxfilt
+View(otu_table(gp.taxfilt))
+
+# 2. Aglomerar a nivel de Familia
+
+gp.taxfam <- tax_glom(gp.taxfilt, taxrank = "Family")
+gp.taxfam
+View(sample_data(gp.taxfam))
+
+# Transformar a abundancias relativas (%)
+
+gp.taxfam.rel <- transform_sample_counts(gp.taxfam, function(otu) otu/sum(otu))
+gp.taxfam.rel
+
+# Subset para incluir solo muestras de: Soil, Feces, Skin
+
+gp.filt.no.rel <- subset_samples(gp.taxfam, sample_data(gp)$SampleType == "Soil" | sample_data(gp)$SampleType == "Feces" | sample_data(gp)$SampleType == "Skin")
+gp.filt <- subset_samples(gp.taxfam.rel, sample_data(gp)$SampleType == "Soil" | sample_data(gp)$SampleType == "Feces" | sample_data(gp)$SampleType == "Skin")
+gp.filt
 View(otu_table(gp.filt))
 View(sample_data(gp.filt))
+
+
 # Diversidad alfa
+
+head(otu_table(gp.taxfam))
+head(otu_table(gp.taxfam.rel))
+
+alfa.rich <- estimate_richness(gp.filt_prune, measures = c("Observed", "Shannon", "Simpson"))
+alfa.rich$SampleType <- sample_data(gp.filt_prune)$SampleType
+alfa.rich
+
+gp.filt_prune <- prune_taxa(taxa_sums(gp.filt.no.rel) > 1, gp.filt.no.rel)
+
+plot_richness(gp.filt_prune,x = "SampleType",measures = c("Observed","Shannon","Simpson"))
+
+plot_richness(gp.filt_prune, x = "SampleType", color = "SampleType", measures = c("Observed","Shannon","Simpson")) + 
+  geom_boxplot() + 
+  theme_bw() + 
+  ggtitle("Indices de diversidad alfa entre tipo de muestra") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+Obs.kruskal <- kruskal.test(Observed ~ SampleType, alfa.rich)
+Obs.kruskal
+Shan.kruskal <- kruskal.test(Shannon ~ SampleType, alfa.rich)
+Shan.kruskal
+Simp.kruskal <- kruskal.test(Simpson ~ SampleType, alfa.rich)
+Simp.kruskal
 
 # Curvas de Rango-Abundancia
 
 # Perfil taxonómico
+
+
 
 # Diversidad Beta
