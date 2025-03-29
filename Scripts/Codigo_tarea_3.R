@@ -42,6 +42,11 @@ plot_ordination(ps.prop, ord.nmds.bray, color="bmi_group", title="Bray NMDS")
 
 # GRAFICA RANK ABUNDANCE
 
+par(mar = c(10, 4, 4, 2) + 0.1)
+barplot(sort(taxa_sums(ps.prop), TRUE)[1:40]/nsamples(ps.prop), las=2, cex.names = 0.63,
+        main = "Curvas de Rango-Abundancia (40 Taxa más abundantes)",
+        ylab = "Abundancia Relativa")
+
 # Gráficas apiladas de abundancia por taxón
 
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
@@ -97,7 +102,7 @@ gp.filt <- subset_samples(gp.taxfam.rel, sample_data(gp)$SampleType == "Soil" | 
 gp.filt
 View(otu_table(gp.filt))
 View(sample_data(gp.filt))
-
+taxa_names(gp.filt)
 
 # Diversidad alfa
 
@@ -127,6 +132,42 @@ Simp.kruskal <- kruskal.test(Simpson ~ SampleType, alfa.rich)
 Simp.kruskal
 
 # Curvas de Rango-Abundancia
+
+tax_table(gp.filt)[,5]
+familia <- as.character(tax_table(gp.filt)[, 5])
+duplicados <- familia[duplicated(familia)]
+print(duplicados)
+familia.unicos <- make.unique(familia)
+taxa_names(gp.filt) <- familia.unicos
+otu_table(gp.filt)
+
+par(mar = c(10, 4, 4, 2) + 0.1)
+barplot(sort(taxa_sums(gp.filt), TRUE)[1:40]/nsamples(gp.filt), las=2, cex.names = 0.63)
+
+barplot(log10(sort(taxa_sums(gp.filt), TRUE)[1:40] + 1), las = 2, cex.names = 0.63, 
+        names.arg = taxa_names(gp.filt)[1:40],  
+        main = "Curvas de Rango-Abundancia (40 Taxa más abundantes)",
+        ylab = "Log10(Abundancia Relativa)")
+
+gp.soil <- subset_samples(gp.filt, sample_data(gp.filt)$SampleType == "Soil")
+gp.feces <- subset_samples(gp.filt, sample_data(gp.filt)$SampleType == "Feces")
+gp.skin <- subset_samples(gp.filt, sample_data(gp.filt)$SampleType == "Skin")
+
+par(mfrow = c(1, 3), mar = c(10, 4, 4, 2) + 0.1)
+
+barplot(log10(sort(taxa_sums(gp.soil), TRUE)[1:40] + 1), las = 2, cex.names = 0.63, 
+        names.arg = taxa_names(gp.soil)[1:40],  
+        main = "Curvas de Rango-Abundancia de Soil (40 Taxa más abundantes)",
+        ylab = "Log10(Abundancia Relativa)")
+barplot(log10(sort(taxa_sums(gp.feces), TRUE)[1:40] + 1), las = 2, cex.names = 0.63, 
+        names.arg = taxa_names(gp.feces)[1:40],  
+        main = "Curvas de Rango-Abundancia de feces (40 Taxa más abundantes)",
+        ylab = "Log10(Abundancia Relativa)")
+barplot(log10(sort(taxa_sums(gp.skin), TRUE)[1:40] + 1), las = 2, cex.names = 0.63, 
+        names.arg = taxa_names(gp.skin)[1:40],  
+        main = "Curvas de Rango-Abundancia de skin (40 Taxa más abundantes)",
+        ylab = "Log10(Abundancia Relativa)")
+
 
 # Perfil taxonómico
 
