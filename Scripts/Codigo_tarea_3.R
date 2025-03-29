@@ -24,7 +24,7 @@ otu.rare <- otu_table(ps_prune)
 otu.rare <- as.data.frame(t(otu.rare))
 sample_names <- rownames(otu.rare)
 
-otu.rarecurve = rarecurve(otu.rare[1:20], step = 10000, label=TRUE, cex.lab=0.1)
+otu.rarecurve = rarecurve(otu.rare[1:20], step = 10000, label=TRUE, cex.lab = 0.1)
 
 otu.rarecurve = rarecurve(otu.rare[1:20], step = 10000,label=FALSE)
 
@@ -101,13 +101,11 @@ gp.filt.no.rel <- subset_samples(gp.taxfam, sample_data(gp)$SampleType == "Soil"
 gp.filt <- subset_samples(gp.taxfam.rel, sample_data(gp)$SampleType == "Soil" | sample_data(gp)$SampleType == "Feces" | sample_data(gp)$SampleType == "Skin")
 gp.filt
 View(otu_table(gp.filt))
+View(otu_table(gp.filt.no.rel))
 View(sample_data(gp.filt))
 taxa_names(gp.filt)
 
 # Diversidad alfa
-
-head(otu_table(gp.taxfam))
-head(otu_table(gp.taxfam.rel))
 
 alfa.rich <- estimate_richness(gp.filt_prune, measures = c("Observed", "Shannon", "Simpson"))
 alfa.rich$SampleType <- sample_data(gp.filt_prune)$SampleType
@@ -154,7 +152,6 @@ gp.feces <- subset_samples(gp.filt, sample_data(gp.filt)$SampleType == "Feces")
 gp.skin <- subset_samples(gp.filt, sample_data(gp.filt)$SampleType == "Skin")
 
 par(mfrow = c(1, 3), mar = c(10, 4, 4, 2) + 0.1)
-
 barplot(log10(sort(taxa_sums(gp.soil), TRUE)[1:40] + 1), las = 2, cex.names = 0.63, 
         names.arg = taxa_names(gp.soil)[1:40],  
         main = "Curvas de Rango-Abundancia de Soil (40 Taxa más abundantes)",
@@ -167,10 +164,65 @@ barplot(log10(sort(taxa_sums(gp.skin), TRUE)[1:40] + 1), las = 2, cex.names = 0.
         names.arg = taxa_names(gp.skin)[1:40],  
         main = "Curvas de Rango-Abundancia de skin (40 Taxa más abundantes)",
         ylab = "Log10(Abundancia Relativa)")
-
+par(mfrow = c(1, 1))
 
 # Perfil taxonómico
 
+# 1. Crear gráfico apilado de abundancia a nivel de Phylum
 
+psTopNOTUs <- names(sort(taxa_sums(gp.filt), TRUE)[1:100])
+pstop.prune <- prune_taxa(psTopNOTUs, gp.filt)
+plot_bar(pstop.prune)
+
+plot_bar(pstop.prune, x = "SampleType", y = "Abundance", fill ="Phylum")
+
+plot_bar(pstop.prune, x = "SampleType", y = "Abundance", fill ="Phylum") + 
+  geom_bar(aes(color = Phylum, fill = Phylum), stat = "identity", position = "stack")
+
+pstop.prune.merge.sampletype <- merge_samples(pstop.prune, "SampleType")
+
+sample_data(pstop.prune.merge.sampletype)$SampleType = factor(sample_names(pstop.prune.merge.sampletype))
+pstop.prune.transform.sampletype = transform_sample_counts(pstop.prune.merge.sampletype, function(x) 100 * x/sum(x))
+
+plot_bar(pstop.prune.transform.sampletype, x = "SampleType", y = "Abundance", fill = "Phylum") + 
+  geom_bar(aes(color = Phylum, fill = Phylum), stat = "identity", position = "stack") +
+  ggtitle("Perfil Taxonomico a nivel Phylum") + theme_bw()  
+
+# 2. Mostrar solo los 5 phyla más abundantes
+# 3. Agrupar por tipo de muestra
+# 4. Usar facet_wrap para comparar ambientes
+
+top5 <- names(sort(taxa_sums(gp.filt.no.rel), decreasing = TRUE))[1:5]
+gp.top5 <- transform_sample_counts(gp.filt.no.rel, function(OTU) OTU/sum(OTU))
+gp.top5 <- prune_taxa(top5, gp.top5)
+otu_table(gp.top5)
+colSums(otu_table(gp.top5))
+plot_bar(gp.top5, x = "SampleType", fill = "Family") + facet_wrap( ~ SampleType, scales = "free_x")
 
 # Diversidad Beta
+
+# 1. Calcular distancia Bray-Curtis
+
+gp.bray <- distance(gp.filt.no.rel, method = "bray")
+gp.bray
+
+# 2. Realizar PCoA
+
+gp.pca <- ordinate(gp.filt, method="PCoA", distance="bray")
+gp.pca
+
+# Visualizar con: Colores por tipo de muestra, Elipses de confianza del 95%, Incluir stress plot
+
+plot_ordination(gp.filt, gp.pca, color = "SampleType", shape = "SampleType")+
+  stat_ellipse(level = 0.95, aes(color = SampleType)) + 
+  scale_color_manual(values = c("Soil" = "blue", "Feces" = "red", "Skin" = "darkgreen")) + 
+  ggtitle(paste("PCoA - Distancia Bray-Curtis")) +
+  theme_bw()
+
+# 4. Hacer manova
+
+pca.c <- as.data.frame(gp.pca$vectors)
+pca.c$SampleType <- sample_data(gp.filt)$SampleType
+pca.c
+head(pca.c)
+summary(manova(cbind(Axis.1, Axis.2) ~ SampleType, pca.c))
